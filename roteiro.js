@@ -136,8 +136,9 @@
     ...(etapa.bancada ? [{ tipo: 'bancada', etapa }] : []),
   ]);
 
-  // As etapas entram depois do slide 5, antes do Projeto I.
-  const SLIDES_ANTES_DAS_ETAPAS = 5;
+  // As etapas entram antes do Projeto I. São 6 slides antes delas: os 5 primeiros
+  // do PDF mais o slide pessoal, que vem logo depois da capa.
+  const SLIDES_ANTES_DAS_ETAPAS = 6;
   const SLIDES = (global.SLIDES || []).map((src, i) => ({ tipo: 'slide', src, numero: i + 1 }));
 
   global.ROTEIRO = [
