@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <title>Protoboard por dentro</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0b0f4a">
+  <meta name="description" content="Mini-etapas interativas do Workshop de Arduino: entenda a protoboard antes de montar na bancada.">
+  <link rel="stylesheet" href="estilo.css">
+</head>
+<body>
+
+  <!-- Lista de etapas: aparece quando o endereço não aponta para uma etapa -->
+  <main id="menu" class="pagina" hidden>
+    <p class="sobretitulo">Workshop · Introdução a Arduino</p>
+    <h1>Protoboard por dentro</h1>
+    <p class="chamada">Faça cada etapa antes de montar na bancada. Leva cerca de 2 minutos.</p>
+    <ol id="listaEtapas" class="lista-etapas"></ol>
+  </main>
+
+  <!-- Etapa em andamento -->
+  <div id="app" class="app" hidden>
+    <header class="topo">
+      <a class="voltar" href="#inicio" aria-label="Ver todas as etapas">
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </a>
+      <div class="topo-titulo">
+        <span id="numeroEtapa" class="numero-etapa"></span>
+        <h1 id="tituloEtapa"></h1>
+      </div>
+      <button id="btRaiox" class="bt-raiox" type="button" aria-pressed="false">Raio-X</button>
+    </header>
+
+    <section class="guia" aria-live="polite">
+      <p id="texto"></p>
+      <ul id="metas" class="metas"></ul>
+      <code id="linhaCodigo" class="linha-codigo" hidden></code>
+    </section>
+
+    <section class="palco">
+      <svg id="placa" role="img" aria-label="Protoboard interativa"></svg>
+      <div id="lente" class="lente" hidden>
+        <svg id="lenteSvg"><use href="#cena"></use></svg>
+        <span class="lente-mira"></span>
+      </div>
+      <div id="aviso" class="aviso" role="status" hidden></div>
+    </section>
+
+    <footer class="acoes">
+      <p id="dica" class="dica"></p>
+      <div id="bandeja" class="bandeja"></div>
+    </footer>
+  </div>
+
+  <!-- Fim da etapa: leva do celular para a bancada -->
+  <main id="bancada" class="pagina" hidden>
+    <p class="sobretitulo" id="bancadaEtapa"></p>
+    <h1 id="bancadaTitulo"></h1>
+    <div id="bancadaMontagem" class="sua-montagem" hidden>
+      <h2>A montagem que você fez</h2>
+      <ul id="bancadaPecas"></ul>
+    </div>
+    <ol id="bancadaItens" class="passos"></ol>
+    <div class="botoes">
+      <button id="btProxima" class="bt-principal" type="button"></button>
+      <button id="btRefazer" class="bt-secundario" type="button">Refazer esta etapa</button>
+    </div>
+  </main>
+
+  <!-- Aula no datashow: slide da apresentação ocupando a tela toda -->
+  <main id="aulaSlide" class="aula-slide" hidden>
+    <img id="aulaSlideImagem" alt="">
+    <p id="aulaSlideDica" class="aula-slide-dica">→ avança · ← volta · F tela cheia</p>
+  </main>
+
+  <!-- Aula no datashow: telas cheias entre as demonstrações -->
+  <main id="aulaTela" class="aula-tela" hidden>
+    <div class="aula-conteudo">
+      <div class="aula-texto">
+        <p class="sobretitulo" id="aulaSobre"></p>
+        <h1 id="aulaTitulo"></h1>
+        <p id="aulaApoio" class="chamada"></p>
+        <ol id="aulaItens" class="passos"></ol>
+      </div>
+      <div id="aulaQrCaixa" class="aula-qr">
+        <canvas id="aulaQr"></canvas>
+        <p id="aulaEndereco"></p>
+      </div>
+    </div>
+    <div id="aulaControles" class="aula-controles"></div>
+  </main>
+
+  <script src="circuito.js"></script>
+  <script src="etapas.js"></script>
+  <script src="roteiro.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

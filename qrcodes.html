@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <title>QR codes das etapas</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="estilo.css">
+  <style>
+    .qr-pagina { max-width: 1100px; margin: 0 auto; padding: 28px 18px 40px; display: flex; flex-direction: column; gap: 16px; }
+    .qr-pagina h1 { font: 700 clamp(24px, 5vw, 32px)/1.15 var(--fonte-titulo); }
+    .qr-campo { display: flex; flex-direction: column; gap: 6px; }
+    .qr-campo label { font-weight: 600; }
+    .qr-campo input {
+      width: 100%;
+      min-height: 46px;
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid var(--vidro-borda);
+      background: rgba(255, 255, 255, 0.1);
+      color: var(--texto);
+      font: 15px var(--fonte-titulo);
+    }
+    .qr-ajuda { font-size: 14px; color: var(--texto-suave); }
+    .qr-acoes { display: flex; flex-wrap: wrap; gap: 8px; }
+    .qr-grade { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px; }
+    .qr-cartao { display: flex; flex-direction: column; gap: 8px; padding: 10px; border-radius: 14px; background: var(--vidro); border: 1px solid var(--vidro-borda); }
+    .qr-cartao canvas { width: 100%; height: auto; border-radius: 8px; display: block; }
+    .qr-cartao .qr-papel { display: none; }
+    .qr-cartao .qr-url { font: 11.5px var(--fonte-titulo); color: var(--texto-suave); overflow-wrap: anywhere; }
+    .qr-botoes { display: flex; gap: 6px; }
+    .qr-botoes button { flex: 1; min-height: 40px; padding: 6px 10px; font-size: 14px; }
+
+    /* Na impressão sai o quadrado branco com o QR, que gasta menos tinta que o slide */
+    @media print {
+      @page { size: A4; margin: 12mm; }
+      body { background: #fff; color: #000; }
+      .qr-pagina { max-width: none; padding: 0; }
+      .qr-pagina > :not(.qr-grade) { display: none; }
+      .qr-grade { grid-template-columns: repeat(2, 1fr); gap: 8mm; }
+      .qr-cartao { background: none; border: 1px solid #999; break-inside: avoid; }
+      .qr-cartao .qr-slide, .qr-botoes { display: none; }
+      .qr-cartao .qr-papel { display: block; }
+      .qr-cartao .qr-url { color: #333; }
+    }
+  </style>
+</head>
+<body>
+  <main class="qr-pagina">
+    <p class="sobretitulo">Só para o instrutor</p>
+    <h1>QR codes das etapas</h1>
+
+    <div class="qr-campo">
+      <label for="endereco">Endereço do site publicado</label>
+      <input id="endereco" type="url" inputmode="url" autocomplete="off" spellcheck="false"
+             placeholder="https://seu-usuario.github.io/protoboard/">
+      <p class="qr-ajuda" id="ajuda"></p>
+    </div>
+
+    <div class="qr-acoes">
+      <button id="btImprimir" class="bt-secundario" type="button">Imprimir folha A4</button>
+    </div>
+
+    <div id="grade" class="qr-grade"></div>
+  </main>
+
+  <script src="circuito.js"></script>
+  <script src="etapas.js"></script>
+  <script src="qrcode.js"></script>
+  <script src="qr.js"></script>
+  <script>
+    (function () {
+      'use strict';
+
+      const CHAVE = 'protoboard.endereco';
+      const MONO = 'ui-monospace, "Cascadia Mono", Consolas, monospace';
+      const TEXTO = 'system-ui, "Segoe UI", Roboto, sans-serif';
+      const entrada = document.getElementById('endereco');
+      const grade = document.getElementById('grade');
+      const ajuda = document.getElementById('ajuda');
+
+      const ITENS = [
+        ...window.ETAPAS.map((e) => ({
+          n: e.n,
+          arquivo: `etapa-${e.n}`,
+          titulo: `Etapa ${e.n}`,
+          subtitulo: e.titulo,
+        })),
+        { n: 0, arquivo: 'todas-as-etapas', titulo: 'Protoboard', subtitulo: 'Todas as etapas' },
+      ];
+
+      function enderecoInicial() {
+        if (window.ENDERECO_DO_SITE) return window.ENDERECO_DO_SITE;
+        try {
+          const salvo = localStorage.getItem(CHAVE);
+          if (salvo) return salvo;
+        } catch (erro) {
+          // Sem armazenamento: começa em branco.
+        }
+        // Publicado junto com o site, já descobre o próprio endereço.
+        const local = !/^https?:$/.test(location.protocol) || /^(localhost|127\.)/.test(location.hostname);
+        return local ? '' : location.href.replace(/qrcodes\.html.*$/, '');
+      }
+
+      function quebrarLinhas(c, texto, largura) {
+        const linhas = [];
+        let atual = '';
+        texto.split(' ').forEach((palavra) => {
+          const tentativa = atual ? `${atual} ${palavra}` : palavra;
+          if (c.measureText(tentativa).width > largura && atual) {
+            linhas.push(atual);
+            atual = palavra;
+          } else {
+            atual = tentativa;
+          }
+        });
+        linhas.push(atual);
+        return linhas;
+      }
+
+      // Slide 16:9 para colocar na apresentação, no mesmo visual do workshop.
+      function desenharSlide(item, url) {
+        const L = 1920;
+        const A = 1080;
+        const canvas = document.createElement('canvas');
+        canvas.width = L;
+        canvas.height = A;
+        canvas.className = 'qr-slide';
+        const c = canvas.getContext('2d');
+
+        const fundo = c.createRadialGradient(L * 0.5, A * 1.05, 0, L * 0.5, A * 1.05, A * 1.45);
+        fundo.addColorStop(0, '#5a2bf0');
+        fundo.addColorStop(0.46, '#1a1590');
+        fundo.addColorStop(1, '#0b0f4a');
+        c.fillStyle = fundo;
+        c.fillRect(0, 0, L, A);
+
+        c.fillStyle = 'rgba(126, 58, 232, 0.6)';
+        c.beginPath();
+        c.moveTo(L * 0.64, 0);
+        c.bezierCurveTo(L * 0.68, A * 0.13, L * 0.82, A * 0.05, L * 0.88, A * 0.14);
+        c.bezierCurveTo(L * 0.93, A * 0.21, L * 0.97, A * 0.3, L, A * 0.33);
+        c.lineTo(L, 0);
+        c.closePath();
+        c.fill();
+
+        const x = 130;
+        c.textBaseline = 'alphabetic';
+
+        c.save();
+        c.shadowColor = '#4fe3ff';
+        c.shadowBlur = 30;
+        c.fillStyle = '#ffffff';
+        c.font = `700 128px ${MONO}`;
+        c.fillText(item.titulo.toUpperCase(), x, 430);
+        c.restore();
+
+        c.fillStyle = '#ffffff';
+        c.font = `600 62px ${TEXTO}`;
+        let y = 550;
+        quebrarLinhas(c, item.subtitulo, 840).forEach((linha) => {
+          c.fillText(linha, x, y);
+          y += 76;
+        });
+
+        c.fillStyle = '#4fe3ff';
+        c.font = `500 42px ${TEXTO}`;
+        c.fillText('Aponte a câmera do celular', x, y + 30);
+
+        const lado = 780;
+        const qx = L - lado - 120;
+        const qy = (A - lado) / 2;
+        c.fillStyle = '#ffffff';
+        c.beginPath();
+        c.roundRect(qx - 16, qy - 16, lado + 32, lado + 32, 34);
+        c.fill();
+        window.QR.desenharQR(c, url, qx, qy, lado);
+        return canvas;
+      }
+
+      // Quadrado branco para imprimir ou colar em qualquer outro material.
+      function desenharPapel(item, url) {
+        const lado = 860;
+        const legenda = 150;
+        const canvas = document.createElement('canvas');
+        canvas.width = lado;
+        canvas.height = lado + legenda;
+        canvas.className = 'qr-papel';
+        const c = canvas.getContext('2d');
+        c.fillStyle = '#ffffff';
+        c.fillRect(0, 0, canvas.width, canvas.height);
+        window.QR.desenharQR(c, url, 0, 0, lado);
+
+        c.textAlign = 'center';
+        c.fillStyle = '#0b0f4a';
+        c.font = `700 52px ${MONO}`;
+        c.fillText(item.titulo, lado / 2, lado + 44);
+        c.font = `500 36px ${TEXTO}`;
+        c.fillStyle = '#3a3f7a';
+        c.fillText(item.subtitulo, lado / 2, lado + 100);
+        return canvas;
+      }
+
+      function baixar(canvas, arquivo) {
+        const link = document.createElement('a');
+        link.download = arquivo;
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+      }
+
+      function montarCartao(item, base) {
+        const url = window.QR.urlDaEtapa(base, item.n);
+        const slide = desenharSlide(item, url);
+        const papel = desenharPapel(item, url);
+
+        const cartao = document.createElement('div');
+        cartao.className = 'qr-cartao';
+        cartao.append(slide, papel);
+
+        const texto = document.createElement('p');
+        texto.className = 'qr-url';
+        texto.textContent = url;
+        cartao.appendChild(texto);
+
+        const botoes = document.createElement('div');
+        botoes.className = 'qr-botoes';
+        const botao = (rotulo, classe, acao) => {
+          const b = document.createElement('button');
+          b.type = 'button';
+          b.className = classe;
+          b.textContent = rotulo;
+          b.addEventListener('click', acao);
+          botoes.appendChild(b);
+        };
+        botao('Baixar slide', 'bt-principal', () => baixar(slide, `slide-${item.arquivo}.png`));
+        botao('Baixar só o QR', 'bt-secundario', () => baixar(papel, `qr-${item.arquivo}.png`));
+        cartao.appendChild(botoes);
+        grade.appendChild(cartao);
+      }
+
+      function atualizar() {
+        const base = entrada.value.trim().replace(/#.*$/, '');
+        grade.textContent = '';
+        document.getElementById('btImprimir').hidden = !base;
+        if (!base) {
+          ajuda.textContent = 'Cole aqui o endereço do site. Os slides aparecem na hora.';
+          return;
+        }
+        if (!/^https:\/\//.test(base)) {
+          ajuda.textContent = 'Confira o endereço: ele precisa começar com https://, senão o celular não abre.';
+          return;
+        }
+        ajuda.textContent = 'Teste um QR com o seu celular antes de levar para a aula.';
+        try {
+          localStorage.setItem(CHAVE, base);
+        } catch (erro) {
+          // Sem armazenamento: só não lembra o endereço na próxima vez.
+        }
+        ITENS.forEach((item) => montarCartao(item, base));
+      }
+
+      entrada.value = enderecoInicial();
+      entrada.addEventListener('input', atualizar);
+      document.getElementById('btImprimir').addEventListener('click', () => window.print());
+      atualizar();
+    })();
+  </script>
+</body>
+</html>
