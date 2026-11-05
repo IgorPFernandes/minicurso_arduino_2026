@@ -1,5 +1,6 @@
 """
-Tira o inglês dos slides. Trabalha na cópia em memória, nunca no PDF original.
+Ajusta os slides para esta edição: tira o inglês e o módulo de interrupção.
+Trabalha na cópia em memória, nunca no PDF original.
 
 Ficam em inglês só os nomes que precisam ser digitados assim no código (digitalWrite,
 HIGH, INPUT...), as siglas e os termos sem tradução usada na área (pull-up, pull-down).
@@ -12,6 +13,7 @@ from pathlib import Path
 
 import cv2
 import fitz
+import numpy as np
 
 PASTA = Path(__file__).resolve().parent / 'slides-extras'
 POPPINS = PASTA / 'Poppins-Light.ttf'
@@ -58,10 +60,6 @@ PARAGRAFOS = [
      'robótica, prototipagem de dispositivos eletrônicos e projetos educacionais. Sua versatilidade '
      'permite criar soluções personalizadas para Internet das Coisas (IoT), monitoramento ambiental, '
      'vestíveis e muito mais.'),
-    (7, (629, 629, 1320, 742), 18.5, 29.2, JUSTIFICADO,
-     'Diferente da varredura, que consome processamento constante e pode ser ineficiente, as '
-     'interrupções permitem que o Arduino responda imediatamente a eventos sem a necessidade de '
-     'verificações contínuas, otimizando o uso do processador para outras tarefas simultâneas.'),
     (11, (629, 330, 1250, 648), 18.5, 28.9, ESQUERDA,
      'O potenciômetro é um resistor variável que ajusta a tensão de saída conforme seu eixo é girado ou '
      'deslizado, atuando como um divisor de tensão. Ele possui três terminais, onde o cursor móvel varia '
@@ -82,14 +80,118 @@ PARAGRAFOS = [
 # Trocas em uma linha só: (slide, trecho antigo, trecho novo, alinhamento).
 LINHAS = [
     (4, 'Pinos I/O', 'Pinos E/S', CENTRO),
-    (7, 'Polling', 'Varredura', CENTRO),
-    (7, 'interrupções sobre polling', 'interrupções sobre varredura', CENTRO),
-    (8, 'modos de trigger', 'modos de disparo', CENTRO),
-    (8, 'modos de ativação (trigger)', 'modos de ativação (disparo)', ESQUERDA),
     (13, 'Baud rate:', 'Velocidade:', CENTRO),
     (17, 'Integre o hardware e o software', 'Integre a montagem e o código', ESQUERDA),
     (19, 'Serial Plotter', 'Plotter Serial', JUSTIFICADO),
 ]
+
+
+# Interrupção é avançado demais para 2 horas: saem a teoria (7 e 8) e o Projeto II (9).
+SLIDES_RETIRADOS = [7, 8, 9]
+
+# Com isso os números andam uma casa. Os títulos renumerados reaproveitam imagens
+# do próprio PDF, para continuar com a fonte original: (slide, imagem atual, imagem
+# nova, posição da imagem nova).
+PROJETOS_RENUMERADOS = [
+    (12, 128, 98, (410, 0, 1030, 338)),  # Projeto III vira Projeto II
+    (14, 149, 128, (393, 0, 1047, 338)),  # Projeto IV vira Projeto III
+]
+
+# Nos módulos, só o algarismo muda: (slide, imagem do título, imagem de onde vem o número).
+MODULOS_RENUMERADOS = [
+    (10, 112, 84),  # Módulo 3 vira Módulo 2
+    (11, 120, 84),
+    (13, 142, 112),  # Módulo 4 vira Módulo 3
+]
+
+SUMARIO = [
+    (True, 'Introdução'),
+    (True, 'Módulo 1: Entrada e Saída Digital'),
+    (True, 'Módulo 2: Conversão Analógico-'),
+    (False, 'Digital (ADC)'),
+    (True, 'Módulo 3: Comunicação Serial'),
+    (True, 'Módulo 4: Mini-Projeto Final'),
+    (True, 'Revisão e Tira-Dúvidas'),
+]
+SUMARIO_X = 207
+SUMARIO_PRIMEIRA_BASE = 377
+SUMARIO_ENTRELINHA = 42.8
+SUMARIO_CORPO = 30.6
+SUMARIO_AREA = (170, 340, 780, 695)
+
+
+def imagem_rgba(documento, xref):
+    mascara = documento.extract_image(xref)['smask']
+    cor = fitz.Pixmap(documento, xref)
+    if cor.alpha or cor.n > 3:
+        cor = fitz.Pixmap(fitz.csRGB, cor)
+    junta = fitz.Pixmap(cor, fitz.Pixmap(documento, mascara))
+    return np.frombuffer(junta.samples, dtype=np.uint8).reshape(junta.height, junta.width, 4).copy()
+
+
+def png_de(rgba):
+    return cv2.imencode('.png', cv2.cvtColor(rgba, cv2.COLOR_RGBA2BGRA))[1].tobytes()
+
+
+def faixas_de_letras(rgba):
+    # Devolve a altura da primeira linha de texto e as colunas de cada letra.
+    letras = rgba[..., 3] > 225
+    linhas = np.where(letras.any(axis=1))[0]
+    quebras = np.where(np.diff(linhas) > 60)[0]  # o acento do Ó fica mais perto que isso
+    fim = linhas[quebras[0]] if len(quebras) else linhas[-1]
+    colunas = np.where(letras[linhas[0]:fim + 1].any(axis=0))[0]
+    grupos = np.split(colunas, np.where(np.diff(colunas) > 4)[0] + 1)
+    return linhas[0], fim, [(g[0], g[-1]) for g in grupos]
+
+
+def trocar_algarismo(destino, origem):
+    # Em MÓDULO N, as letras são M, Ó, D, U, L, O: o número é a sétima peça.
+    topo_d, base_d, letras_d = faixas_de_letras(destino)
+    topo_o, _, letras_o = faixas_de_letras(origem)
+    meio = lambda a, b: (int(a) + int(b)) // 2
+    x0_d, x1_d = meio(letras_d[5][1], letras_d[6][0]), meio(letras_d[6][1], letras_d[7][0])
+    x0_o, x1_o = meio(letras_o[5][1], letras_o[6][0]), meio(letras_o[6][1], letras_o[7][0])
+    largura = min(x1_d - x0_d, x1_o - x0_o)
+    folga = 40  # inclui o brilho acima e abaixo do número
+    altura = int(base_d) - int(topo_d) + 1 + 2 * folga
+    y_d = int(topo_d) - folga
+    y_o = int(topo_o) - folga
+    novo_x_d = meio(x0_d, x1_d) - largura // 2
+    novo_x_o = meio(x0_o, x1_o) - largura // 2
+    destino[y_d:y_d + altura, novo_x_d:novo_x_d + largura] = origem[y_o:y_o + altura, novo_x_o:novo_x_o + largura]
+    return destino
+
+
+def ajustar_sumario(pagina):
+    pagina.add_redact_annot(fitz.Rect(SUMARIO_AREA), fill=False)
+    pagina.apply_redactions(
+        images=fitz.PDF_REDACT_IMAGE_NONE,
+        graphics=fitz.PDF_REDACT_LINE_ART_REMOVE_IF_COVERED,
+        text=fitz.PDF_REDACT_TEXT_REMOVE,
+    )
+    pagina.insert_font(fontname='poppins', fontfile=str(POPPINS))
+    base = SUMARIO_PRIMEIRA_BASE
+    for com_marca, texto in SUMARIO:
+        if com_marca:
+            pagina.draw_circle((SUMARIO_X - 18, base - 10), 3.8, color=BRANCO, fill=BRANCO)
+        pagina.insert_text((SUMARIO_X, base), texto, fontsize=SUMARIO_CORPO, fontname='poppins', color=BRANCO)
+        base += SUMARIO_ENTRELINHA
+
+
+def retirar_interrupcao(documento):
+    # Lê antes de apagar: a imagem do Projeto III é usada e substituída ao mesmo tempo.
+    projetos = [(n, atual, png_de(imagem_rgba(documento, nova)), ret) for n, atual, nova, ret in PROJETOS_RENUMERADOS]
+    modulos = [
+        (n, atual, png_de(trocar_algarismo(imagem_rgba(documento, atual), imagem_rgba(documento, origem))),
+         documento[n - 1].get_image_rects(atual)[0])
+        for n, atual, origem in MODULOS_RENUMERADOS
+    ]
+    for n, atual, png, ret in projetos + modulos:
+        pagina = documento[n - 1]
+        pagina.delete_image(atual)
+        pagina.insert_image(fitz.Rect(ret), stream=png, keep_proportion=False, overlay=True)
+    ajustar_sumario(documento[1])
+    documento.delete_pages([n - 1 for n in SLIDES_RETIRADOS])
 
 
 def renderizar_titulo(arquivo, texto, tipo='titulo'):
@@ -226,3 +328,5 @@ def traduzir(documento):
                 largura = fonte.text_length(texto, fontsize=corpo)
                 x = ret.x0 if alinhamento == ESQUERDA else (ret.x0 + ret.x1 - largura) / 2
                 pagina.insert_text((x, medida), texto, fontsize=corpo, fontname='poppins', color=BRANCO)
+
+    retirar_interrupcao(documento)
