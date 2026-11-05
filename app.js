@@ -1461,7 +1461,7 @@
     guardarTela(i);
     pararTudo();
     const t = telas[i];
-    document.title = t.etapa ? `Aula: ${t.etapa.titulo}` : 'Workshop de Arduino';
+    document.title = t.etapa ? `Aula: ${t.etapa.titulo}` : 'Oficina de Arduino';
     if (t.tipo === 'demo') mostrarDemonstracao(t);
     else if (t.tipo === 'slide') mostrarSlide(t);
     else mostrarTelaCheiaDaAula(t);

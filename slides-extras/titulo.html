@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <title>Título de slide</title>
+  <!--
+    Desenha um título com fundo transparente, no estilo dos títulos do PDF.
+    titulo.html?texto=OFICINA          título
+    titulo.html?texto=LINHA 1|LINHA 2  título em duas linhas
+    titulo.html?texto=...&tipo=assinatura  linha fina, como "Ministrado por"
+
+    A fonte original dos títulos não está disponível. A Chakra Petch, comprimida
+    na horizontal, é a mais parecida: tem o mesmo O octogonal e os cantos cortados.
+  -->
+  <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500&family=Poppins:wght@300&display=block" rel="stylesheet">
+  <style>
+    html, body { margin: 0; background: transparent; }
+
+    #titulo {
+      display: inline-block;
+      padding: 120px;
+      color: #fff;
+      white-space: nowrap;
+      transform-origin: top left;
+    }
+
+    .titulo #titulo {
+      font: 500 300px/1.08 "Chakra Petch", sans-serif;
+      letter-spacing: 0.04em;
+      transform: scaleX(0.8);
+      text-shadow: 0 0 22px rgba(190, 205, 255, 0.95), 0 0 70px rgba(70, 90, 255, 1), 0 0 110px rgba(70, 90, 255, 0.7);
+    }
+
+    .assinatura #titulo {
+      font: 300 120px/1.2 Poppins, sans-serif;
+      text-shadow: 0 0 16px rgba(190, 205, 255, 0.7), 0 0 40px rgba(70, 90, 255, 0.9);
+    }
+  </style>
+</head>
+<body>
+  <div id="titulo"></div>
+  <script>
+    const parametros = new URLSearchParams(location.search);
+    document.body.className = parametros.get('tipo') || 'titulo';
+    const titulo = document.getElementById('titulo');
+    (parametros.get('texto') || '').split('|').forEach((linha, i) => {
+      if (i) titulo.appendChild(document.createElement('br'));
+      titulo.appendChild(document.createTextNode(linha));
+    });
+  </script>
+</body>
+</html>

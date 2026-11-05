@@ -20,6 +20,8 @@ from pathlib import Path
 
 import fitz
 
+from traducao_slides import traduzir
+
 PASTA = Path(__file__).resolve().parent
 PDF = PASTA.parent / 'Minicurso_arduino2025.pdf'
 SAIDA = PASTA / 'Minicurso_Arduino_2026.html'
@@ -63,6 +65,7 @@ def renderizar_slide_pessoal():
 
 def slides_do_pdf():
     documento = fitz.open(PDF)
+    traduzir(documento)  # o arquivo do PDF não é alterado
     imagens = []
     for pagina in documento:
         # O PDF exportado tem um fio branco nas bordas, que apareceria em tela cheia.
@@ -94,7 +97,7 @@ def gerar():
     slides.insert(1, em_data_url(IMAGEM_DO_SLIDE_PESSOAL.read_bytes()))  # logo depois da capa
     html = ler('index.html')
     html = trocar(html, '<link rel="stylesheet" href="estilo.css">', '<style>' + ler('estilo.css') + '</style>')
-    html = trocar(html, '<title>Protoboard por dentro</title>', '<title>Workshop de Arduino</title>')
+    html = trocar(html, '<title>Protoboard por dentro</title>', '<title>Oficina de Arduino</title>')
 
     inicio = (
         script('window.APRESENTACAO = true; window.SLIDES = ' + json.dumps(slides) + ';')
